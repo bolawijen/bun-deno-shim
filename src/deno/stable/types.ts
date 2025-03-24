@@ -57,6 +57,8 @@ export type TlsHandshakeInfo = Deno.TlsHandshakeInfo;
 export type TlsListener = Deno.TlsListener;
 export type UnixAddr = Deno.UnixAddr;
 export type UnixConn = Deno.UnixConn;
+export type UnixConnectOptions = Deno.UnixConnectOptions;
+export type UnixListenOptions = Deno.UnixListenOptions;
 export type WriteFileOptions = Deno.WriteFileOptions;
 export type WritePermissionDescriptor = Deno.WritePermissionDescriptor;
 export type Writer = Deno.Writer;
@@ -69,3 +71,17 @@ export type ResolveDnsOptions = Deno.ResolveDnsOptions;
 export type SOARecord = Deno.SOARecord;
 export type SRVRecord = Deno.SRVRecord;
 export type RecordType = Deno.RecordType;
+
+export type HttpServer = {
+    finished: boolean;
+};
+export type ServeOptions = {
+    port: number = 8000;
+    hostname: string = '0.0.0.0';
+    signal?: AbortSignal;
+    reusePort?: boolean;
+    onError?: (error: unknown) => Response | Promise<Response>;
+    onListen?: (params: { hostname: string; port: number; }) => void;
+};
+export type ServeHandler = (req: Request) => Response | Promise<Response>;
+export type ServeHandlerInfo = { remoteAddr: NetAddr };

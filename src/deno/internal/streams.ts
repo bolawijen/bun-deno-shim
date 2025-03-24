@@ -7,6 +7,7 @@ export class BufferStreamReader implements Deno.Reader {
   #pendingActions: (() => void)[] = [];
 
   constructor(stream: NodeJS.ReadableStream) {
+    // console.info({stream})
     this.#stream = stream;
     this.#stream.pause();
 
@@ -59,6 +60,7 @@ export class BufferStreamReader implements Deno.Reader {
         }
 
         const readBuffer = this.#stream.read(p.byteLength) as Buffer;
+
         if (readBuffer && readBuffer.byteLength > 0) {
           readBuffer.copy(p, 0, 0, readBuffer.byteLength);
           resolve(readBuffer.byteLength);

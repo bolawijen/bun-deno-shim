@@ -4,8 +4,8 @@ import childProcess from "child_process";
 import fs from "fs";
 import os from "os";
 import url from "url";
-import { once } from "events";
 import which from "which";
+import { once } from "events";
 
 import { BufferStreamReader, StreamWriter } from "../../internal/streams.js";
 import * as errors from "../variables/errors.js";
@@ -47,6 +47,7 @@ export const run: typeof Deno.run = function run<
       getStdio(options.stderr, "out"),
     ],
   });
+
   return new Process<T>(process);
 };
 
@@ -209,7 +210,10 @@ class ProcessReadStream implements Deno.Reader, Deno.Closer {
   }
 
   static fromNullable(stream: childProcess.ChildProcess["stdout"]) {
-    return stream ? new ProcessReadStream(stream) : undefined;
+    if (stream) {
+      stream.pause ||= () => {} // @Fixme: Bun haven't implemented
+      return new ProcessReadStream(stream)
+    }
   }
 
   readAll() {

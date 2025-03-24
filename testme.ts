@@ -1,0 +1,1 @@
+import './deno/stable/main.js';
