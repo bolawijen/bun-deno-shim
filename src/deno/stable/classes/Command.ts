@@ -1,10 +1,19 @@
-import { FileSink, Subprocess } from 'bun';
+import { FileSink, Subprocess, readableStreamToArrayBuffer } from 'bun';
 import { ChildProcess } from "./ChildProcess.js";
 
+
+export type CommandOutput = {
+    signal: string | null,
+    success: boolean,
+    code: number,
+}
+
 export class Command {
-    #cmds = []; #opts = {}
+    #cmds = []
+    #opts = {}
     #stdout: string;
     #stderr: string;
+
     constructor(bin, opts = {}) {
         opts.args ||= []
         opts.args.unshift(bin)
@@ -23,10 +32,14 @@ export class Command {
         ]) {
             opts[stdio] = stdio_value[opts[stdio]]
         }
+
+        if (process.parsedArgs.values?.['allow-all']) {
+            this.#cmds.push('--allow-all' as never)
+        }
     }
 
     spawn(): ChildProcess {
-        const [bin, cmd] = this.#opts.args
+        // const [bin, cmd] = this.#opts.args
 
         // this.#opts.stdout = 'inherit'
         this.#opts.stderr = 'inherit'
@@ -37,6 +50,13 @@ export class Command {
             stdin: FileSink;
             stdout: ReadableStream;
         } = Bun.spawn(this.#cmds, this.#opts)
+
+        const status: CommandOutput = {
+            signal: null,
+            success: true,
+            code: 0,
+        }
+
         //  as SubP {
         //     exited: Promise<number>;
         //     stdout: ReadableStream;
@@ -47,35 +67,46 @@ export class Command {
 
         bun_subproc.exited.then((exit) => {
             // console.warn('bun_subproc exited', exit)
+            if (exit !== 0) {
+                status.code = exit
+                status.success = false
+                status.signal = bun_subproc.signalCode
+            }
         })
  
+        // console.info({process_args: process.parsedArgs, cmds: this.#cmds, opts: this.#opts, bun_subproc})
         return {
-            stdin: new WritableStream({
-                write(chunk: Uint8Array, controller: WritableStreamDefaultController) {
-                    // console.info({chunk, controller})
-                    bun_subproc.stdin.write(chunk)
-                    bun_subproc.stdin.flush()
-                },
-                close() {
-                    bun_subproc.stdin.end()
-                    // bun_subproc.kill()
-                }
-            }),
-            output() {
-                let s
-                return Bun.readableStreamToArrayBuffer(bun_subproc.stdout)
-                    // .then((buf: ArrayBuffer) => (console.warn(`stdout: byteLength:`, buf.byteLength, '\n', s=new TextDecoder().decode(buf), '\nstr.length:', s.length), buf))
-                    .then((buf: ArrayBuffer) => new Uint8Array(buf))
-                    // .then((arr: Uint8Array) => (console.warn(`arr.length:`, arr.length, arr.slice(880, 900), {end: arr.indexOf(0)}), arr))
-                    .then((arr: Uint8Array) => arr.slice(0, Math.min(Math.max(arr.indexOf(0), 0), arr.length)))
-                    .then((stdout: Uint8Array) => ({stdout}))
+            get pid() { return bun_subproc.pid },
+
+            get stdin() {
+                return new WritableStream({
+                    write(chunk: Uint8Array, controller: WritableStreamDefaultController) {
+                        // console.info({chunk, controller})
+                        bun_subproc.stdin.write(chunk)
+                        bun_subproc.stdin.flush()
+                    },
+                    close() {
+                        bun_subproc.stdin.end()
+                        // bun_subproc.kill()
+                    }
+                })
+            },
+
+            get stdout() { return bun_subproc.stdout },
+            get stderr() { return bun_subproc.stderr },
+            get status() { return Promise.resolve(status) },
+
+            async output() {
+                const arr = new Uint8Array(await readableStreamToArrayBuffer(bun_subproc.stdout))
+                return { stdout: arr.slice(0, Math.min(Math.max(arr.indexOf(0), 0), arr.length)) } as never
             }
-            // async output() {
-            //     return {
-            //         stdout: await Bun.readableStreamToArrayBuffer(stdout),
-            //         stderr,
-            //     }
-            // }
         } as ChildProcess
+    }
+
+    output() {
+        return this.spawn().status
+    }
+
+    outputSync(): CommandOutput {
     }
 }
