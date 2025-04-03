@@ -19,9 +19,9 @@ export const serve: typeof Deno.serve = function (opts: ServeHandler & ServeOpti
               hostname: remote?.address || 'localhost',
             }
           }
-          console.info('Bun.serve#fetch.req',req)
+          // console.info('Bun.serve#fetch.req',req)
           const res: Response = await (opts instanceof Function ? opts : handler)(req, info)
-          console.info('Bun.serve#fetch.res',res)
+          // console.info('Bun.serve#fetch.res',res)
   
           if (res.status === 404) {
             console.error(`throw new Deno.errors.NotFound()`)
